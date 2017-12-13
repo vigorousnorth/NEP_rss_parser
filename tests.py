@@ -1,6 +1,7 @@
+import re
 
-
-
+################################ demonstration of SearchGraph ################################
+# initialize SearchGraph data structure
 data_struct = {'root':'Portland', 
                'children': ['South Portland', 'West Portland', 'Portland Heights', 'South Portland Heights', 'South Portland Heights Park', 'West Portland Heights', 'South Portland Heights Grove'],
                'relations': [('Portland', 'South Portland'),
@@ -14,92 +15,62 @@ data_struct = {'root':'Portland',
                          ('South Portland Heights', 'South Portland Heights Grove')]}
 
 
+# create disambiguation_data object
+data = disambiguation_data(data_struct)
+# initialize search graph
+G = SearchGraph(data)
+
+string = '''
+        Welcome to West Portland Heights! A suburb of South Portland, 
+        which is next to South Portland Heights but not to be confused with
+        South Portland Heights Grove, which are all part of Portland.
+        '''
+
+
+# STAGE 1: count total matches in string
+G.count_matches(string)
+G.print_matches()
+
+# STAGE 2: compute actual matches in string
+true_matches = G.compute_actual()
+G.print_actual()
+
+
+########################## demonstration of placeFilter #######################
 
 data_struct1 = {'root':'Crown Heights',
                'children' : ['Crown Heights Plaza'],
                'relations': [('Crown Heights', 'Crown Heights Plaza')]}
         
 
-
-
 singleton = 'New Haven'
 
-places = [data_struct, data_struct1, singleton]
+places = [disambiguation_data(data_struct), disambiguation_data(data_struct1), singleton]
 
 
-
-class placeFilter:
-    
-    filters = []
-    
-    def __init__(self, filter_list):
+string = '''
+        Welcome to West Portland Heights! A suburb of South Portland, 
+        which is next to South Portland Heights but not to be confused with
+        South Portland Heights Grove, which are all part of Portland. The Crown Heights Plaza area is 
+        next to the New Haven school.
+        '''
         
-        for i, p in enumerate(filter_list):
-            if isinstance(p, dict) == True:
-                filter_list[i] = SearchGraph(disambiguation_data(p))
-            else isinstance(p, str) == False:
-                raise ValueError("Non-structed data must be string.")           
-
-        self.filters = filter_list
+name_filter = placeFilter(places)
+name_filter.checkFilters(string)
 
 
-    def checkFilters(self, string):
-        matches = []
-        for p in self.filters:
-            if isinstance(p, SearchGraph):
-                p.count_matches(string)
-                matches.extend(p.find_matches())
-            else:
-                if re.search(p, string) != None:
-                    matches.append(p)
-        
-        return matches
         
         
 
 
-temp = []
-
-for p in places:
-    if isinstance(p, SearchGraph):
-        p.count_matches(string)
-        temp.extend(p.find_matches())
-    else:
-        if re.search(p, string) != None:
-            temp.append(p)
 
 
 
-data = disambiguation_data(data_struct)
-
-G = SearchGraph(data)
-G.count_matches(string)
-
-G.compute_actual()
-G.print_data()
-
-G.outneighbor_path('Portland')
-
-G.find_matches()
-G.outneighbor_matches('Portland')
-
-V = [data_struct['root']]
-V.extend(data_struct['children'])
-
-E = data_struct['edges']
-
-
-
-string = 'Welcome to West Portland Heights! A suburb of South Portland, which is next to South Portland Heights but not to be confused with South Portland Heights Grove, which are all part of Portland.'
 
 
     
     
-G.bfs('Portland', string)
-G.reset_visits()
 
-temp = G.name_bfs('Portland')
-print(temp)
 
 
 

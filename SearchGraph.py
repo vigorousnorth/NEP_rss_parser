@@ -1,8 +1,5 @@
-import re
 
-
-
-
+# class for storing data structure that defines the disambiguation search graph
 class disambiguation_data:
     
     DATA = dict()
@@ -37,19 +34,18 @@ class disambiguation_data:
         return self.DATA['children']
 
 
-
+# class for nodes of search graph
 class Vertex:
     
     def __init__(self, n, is_root):
         self.name = n
         self.neighbors = list()
         self.visited = False
-        self.secondary_visited = False
         self.actual = 0
         self.matches = 0
-        self.distance_from_root = 9999
+        self.distance_from_root = int()
         self.is_root = is_root
-        
+    
     def add_neighbor(self, v):
         if v not in self.neighbors:
             self.neighbors.append(v)
@@ -66,6 +62,7 @@ class SearchGraph:
     
     def __init__(self, disamb_data):
         
+        ##### functions for initializing vertex and edge sets #################
         
         def _add_vertex(vertex):
             if isinstance(vertex, Vertex):     # check to make sure vertex object
@@ -90,6 +87,12 @@ class SearchGraph:
             else:
                 return False
         
+        #######################################################################
+        
+        # check input is of type disambiguation_data
+        if isinstance(disamb_data, disambiguation_data) == False:
+            raise ValueError("SearchGraph must be initialized with disambiguation_data object.")
+        
         # create vertices
         self.root_name = disamb_data.get_root()
         _add_vertex(Vertex(disamb_data.get_root(), True))
@@ -101,42 +104,28 @@ class SearchGraph:
             _add_edges(e[0],e[1])
         
         
-    #### initializer functions ####
-#    def add_vertex(self, vertex):
-#        if isinstance(vertex, Vertex):     # check to make sure vertex object
-#            if vertex.name not in self.V:      # add vertex object if not in vertex name not in V
-#                self.V[vertex.name] = vertex      # add vertex object to V
-#                return True
-#            else:
-#                return False
-#        else:
-#            return False
-#        
-#    
-#    def add_edges(self, u, v):
-#        
-#        if u in self.V and v in self.V:          # check that vertex names are in V
-#            
-#            for vertex_name, vertex in self.V.items():  # iterate through vertex objects in V
-#                if vertex_name == u:                    # if name matches u, add v to vertex object's neighbors
-#                    vertex.add_neighbor(v)
-#                if vertex_name == v:                    # if name matches v, add u to vertex object's neighbors
-#                    vertex.add_neighbor(u)
-#                    
-#            return True
-#        else:
-#            return False
-      
+
     ################################
-    #### printing functions ####
+    #### printing functions ########
     
     def get_node(self, v):
         return self.V[v]
     
+    def print_matches(self):
+        for v in self.V:
+            node_v = self.V[v]
+            print(node_v.name + ": " + str(node_v.matches))
+            
+    
+    def print_actual(self):
+        for v in self.V:
+            node_v = self.V[v]
+            print(node_v.name + ": " + str(node_v.actual))
+    
     def print_data(self):
         for v in self.V:
             node_v = self.V[v]
-            print(node_v.name + ". Matches: " + str(node_v.matches) + ", Actual: " + str(node_v.actual))
+            print(node_v.name + ". Total: " + str(node_v.matches) + ", Actual Matches: " + str(node_v.actual))
     
     def print_graph(self):
         for v in self.V:
@@ -148,67 +137,67 @@ class SearchGraph:
             if self.V[v].is_root == True:
                 return self.V[v].name
         
-        
-    def outneighbor_matches(self,v):
+
+    def inneighbors(self, v):
         d = self.V[v].distance_from_root
         nbhd = [self.V[u] for u in self.V[v].neighbors]
-        nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
-        temp = list(filter(lambda x: x.matches > 0, nbhd))
-        
-        sums = []
-        for n in temp:
-            sums.append(n.matches)
-        
-        return sum(sums)
-    
+        nbhd = list(filter(lambda n: n.distance_from_root < d, nbhd))
+        nbhd = list(map(lambda n: n.name, nbhd))
+        return nbhd
     
     def outneighbors(self, v):
         d = self.V[v].distance_from_root
         nbhd = [self.V[u] for u in self.V[v].neighbors]
         nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
         nbhd = list(map(lambda n: n.name, nbhd))
-
         return nbhd
-    ###########################
+    
+    
+    ################### search functions ######################################
     
     def compute_actual(self):
-                
+        
+        ########################### functions #################################
+        # compute the sum of matches of out-neighbors
+        def _outneighbor_matches(v):
+            d = self.V[v].distance_from_root
+            nbhd = [self.V[u] for u in self.V[v].neighbors]
+            nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
+            #out_nbhd = list(filter(lambda x: x.matches > 0, nbhd))
+            
+            sums = []
+            for n in nbhd:
+                sums.append(n.matches)
+            
+            return sum(sums)
+        #######################################################################
+        
+        
+        # check that count_matches() has been run first and reset visit markers for new run
         if self.count_stage == False:
             raise ValueError("Must run count_matches() stage first!")
         else:
             for v in self.V:
                 self.V[v].visited = False
-
-        
-        def _outneighbor_matches(v):
-            d = self.V[v].distance_from_root
-            nbhd = [self.V[u] for u in self.V[v].neighbors]
-            nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
-            temp = list(filter(lambda x: x.matches > 0, nbhd))
+                self.V[v].actual = 0
             
-            sums = []
-            for n in temp:
-                sums.append(n.matches)
-            
-            return sum(sums)
-            
-            
-            
-        actuals = list()
         root_node = self.V[self.root_name]
-        # check that root node has distance 0
+        # verify root node
         if root_node.distance_from_root > 0 or root_node.is_root == False:
             raise ValueError
+        else:
+            root_node.visited = True
             
+         
+        actuals = list()
         queue = list()
-        root_node.visited = True
         
-            
+        ## begin BFS run
+
         for v in root_node.neighbors:
             queue.append(v)
             self.V[v].actual = self.V[v].matches - _outneighbor_matches(v)
             actuals.append(self.V[v].actual)
-            
             
         while len(queue) > 0:
             u = queue.pop(0)
@@ -223,10 +212,12 @@ class SearchGraph:
                     node_v.visited = True
                     node_v.actual = node_v.matches - _outneighbor_matches(v)
                     actuals.append(node_v.actual)
-
+        
+        # compute actual matches of root node as number of matches - actual matches of children
         if sum(actuals) < root_node.matches:
             root_node.actual = root_node.matches - sum(actuals)
         
+        # return actual matches
         actual_matches = []
         for v in self.V:
             if self.V[v].actual > 0:
@@ -236,143 +227,111 @@ class SearchGraph:
         
         
     
-    def find_matches(self):
-                
-        if self.count_stage == False:
-            raise ValueError("Must run count_matches() stage first!")
-        else:
-            for v in self.V:
-                self.V[v].visited = False
-        
-        def _active_outdegree(v):
-            d = self.V[v].distance_from_root
-            
-            nbhd = [self.V[u] for u in self.V[v].neighbors]
-            nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
-            temp = list(filter(lambda x: x.matches > 0, nbhd))
-            
-            return len(temp)
-
-        
-        def _outneighbor_matches(v):
-            d = self.V[v].distance_from_root
-            nbhd = [self.V[u] for u in self.V[v].neighbors]
-            nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
-            temp = list(filter(lambda x: x.matches > 0, nbhd))
-            
-            sums = []
-            for n in temp:
-                sums.append(n.matches)
-            
-            return sum(sums)
-            
-            
-            
-        
-        root_node = self.V[self.root_name]
-        # check that root node has distance 0
-        if root_node.distance_from_root > 0 or root_node.is_root == False:
-            raise ValueError
-            
-        queue = list()
-        name_list = list()
-        root_node.visited = True
-        
-        # check root node outdegree
-        if _outneighbor_matches(root_node.name) < root_node.matches:
-            name_list.append(root_node.name)
-            
-        
-        for v in root_node.neighbors:
-            queue.append(v)
-            if _outneighbor_matches(v) < self.V[v].matches:
-                name_list.append(v)
-            
-        while len(queue) > 0:
-            u = queue.pop(0)
-            node_u = self.V[u]
-            node_u.visited = True
-            
-            for v in node_u.neighbors:
-                node_v = self.V[v]
-                
-                if node_v.visited == False:
-                    queue.append(v)
-                    node_v.visited = True
-                    if _outneighbor_matches(v) < node_v.matches:
-                        name_list.append(v)
-        
-        return name_list
-
-    
-#    def outneighbor_path(self, node):
+#    def find_matches(self):
+#                
+#        if self.count_stage == False:
+#            raise ValueError("Must run count_matches() stage first!")
+#        else:
+#            for v in self.V:
+#                self.V[v].visited = False
 #        
-#        path_sum = list()
+#        def _active_outdegree(v):
+#            d = self.V[v].distance_from_root
+#            
+#            nbhd = [self.V[u] for u in self.V[v].neighbors]
+#            nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
+#            temp = list(filter(lambda x: x.matches > 0, nbhd))
+#            
+#            return len(temp)
+#
 #        
-#        def _outneighbors(v):
+#        def _outneighbor_matches(v):
 #            d = self.V[v].distance_from_root
 #            nbhd = [self.V[u] for u in self.V[v].neighbors]
 #            nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
-#            nbhd = list(map(lambda n: n.name, nbhd))
-#
-#            return nbhd
+#            temp = list(filter(lambda x: x.matches > 0, nbhd))
+#            
+#            sums = []
+#            for n in temp:
+#                sums.append(n.matches)
+#            
+#            return sum(sums)
+#            
+#            
+#            
 #        
+#        root_node = self.V[self.root_name]
+#        # check that root node has distance 0
+#        if root_node.distance_from_root > 0 or root_node.is_root == False:
+#            raise ValueError
+#            
 #        queue = list()
-#        root_node = self.V[node]
-#        root_node.secondary_visited = True
-#        # compute other data about root_node
-#                
-#        # initialize BFS with root's neighbors
-#        for v in _outneighbors(root_node.name):
+#        name_list = list()
+#        root_node.visited = True
+#        
+#        # check root node outdegree
+#        if _outneighbor_matches(root_node.name) < root_node.matches:
+#            name_list.append(root_node.name)
+#            
+#        
+#        for v in root_node.neighbors:
 #            queue.append(v)
-#            self.V[v].secondary_visited = True
-#
-#
-#        ### continue BFS
+#            if _outneighbor_matches(v) < self.V[v].matches:
+#                name_list.append(v)
+#            
 #        while len(queue) > 0:
 #            u = queue.pop(0)
 #            node_u = self.V[u]
-#            node_u.secondary_visited = True
+#            node_u.visited = True
 #            
-#            for v in _outneighbors(u):
+#            for v in node_u.neighbors:
 #                node_v = self.V[v]
 #                
-#                if node_v.secondary_visited == False:
+#                if node_v.visited == False:
 #                    queue.append(v)
-#                    node_v.secondary_visited = True
-#                    path_sum.append(node_v.matches)
-#
-#        return sum(path_sum)
+#                    node_v.visited = True
+#                    if _outneighbor_matches(v) < node_v.matches:
+#                        name_list.append(v)
 #        
-    
+#        return name_list
+
+
+    # uses BFS to run through search graph and count number of matches in a given string
     
     def count_matches(self, string):
         
+        ############################## functions ##############################
+        # returns number of matches of expression in a string
         def _match(rex, string):
             temp = re.findall(rex, string)
             if temp != None:
                 return len(temp)
             else:
                 return 0
-                
+               
+        #######################################################################
+        
         ### initialize search ###
+        # reset SearchGraph variables from any previous runs
+        for v in self.V:
+            self.V[v].visited = False
+            self.V[v].matches = 0
+            
         # initialize queue and root node
-        queue = list()
         root_node = self.V[self.root_name]
         root_node.distance_from_root = 0
         root_node.visited = True
-        # compute other data about root_node
         root_node.matches = _match(root_node.name, string)
-                
+        queue = list()
+        
+        
         # initialize BFS with root's neighbors
         for v in root_node.neighbors:
             queue.append(v)
             self.V[v].distance_from_root = 1
-            # compute other data about 
             self.V[v].matches = _match(v, string)
-            
-            
-        ### continue BFS
+               
+        ### continue BFS ###
         while len(queue) > 0:
             u = queue.pop(0)
             node_u = self.V[u]
@@ -384,11 +343,11 @@ class SearchGraph:
                 if node_v.visited == False:
                     queue.append(v)
                     node_v.visited = True
-                    # compute other data about v
                     node_v.matches = _match(v, string)
+                    node_v.distance_from_root = node_u.distance_from_root + 1
                     
-                    if node_v.distance_from_root > node_u.distance_from_root:
-                        node_v.distance_from_root = node_u.distance_from_root + 1
+#                    if node_v.distance_from_root > node_u.distance_from_root:
+#                        node_v.distance_from_root = node_u.distance_from_root + 1
         
         self.count_stage = True
             
