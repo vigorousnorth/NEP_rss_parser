@@ -20,13 +20,14 @@ class placeFilter:
 
 
     def checkFilters(self, string):
-        matches = []
+        matches = dict()
         for p in self.filters:
             if isinstance(p, SearchGraph):
                 p.count_matches(string)
-                matches.extend(p.compute_actual())
+                matches.update(p.compute_actual())
             else:
                 if re.search(p, string) != None:
-                    matches.append(p)
+                    temp = re.findall(p, string)
+                    matches.update({p: len(temp)})
         
         return matches

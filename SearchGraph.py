@@ -13,7 +13,7 @@ class disambiguation_data:
             if d_names != ['children','relations','root']:
                 raise KeyError("One or more keys is missing. 'root','children', and 'relations' must be present.")
             
-            # check root
+            # check that root is contained in all children
             for c in data_struct['children']:
                 if re.search(data_struct['root'], c) == None or len(c) < len(data_struct['root']):
                     raise ValueError("Warning! Children must contain root!")
@@ -93,13 +93,15 @@ class SearchGraph:
         if isinstance(disamb_data, disambiguation_data) == False:
             raise ValueError("SearchGraph must be initialized with disambiguation_data object.")
         
-        # create vertices
+        #### create nodes of search graph ####
+        # add root node
         self.root_name = disamb_data.get_root()
         _add_vertex(Vertex(disamb_data.get_root(), True))
+        # add child nodes
         for c in disamb_data.get_children():
             _add_vertex(Vertex(c, False))
         
-        # create edges
+        #### create edges of search graph ####
         for e in disamb_data.get_relations():
             _add_edges(e[0],e[1])
         
@@ -159,12 +161,15 @@ class SearchGraph:
         
         ########################### functions #################################
         # compute the sum of matches of out-neighbors
+        # takes name of vertex v
         def _outneighbor_matches(v):
+            
+            # get out-neighbors of v
             d = self.V[v].distance_from_root
             nbhd = [self.V[u] for u in self.V[v].neighbors]
             nbhd = list(filter(lambda n: n.distance_from_root > d, nbhd))
-            #out_nbhd = list(filter(lambda x: x.matches > 0, nbhd))
             
+            # total up matches of out-neighbors
             sums = []
             for n in nbhd:
                 sums.append(n.matches)
@@ -182,17 +187,18 @@ class SearchGraph:
                 self.V[v].actual = 0
             
         root_node = self.V[self.root_name]
+        
         # verify root node
         if root_node.distance_from_root > 0 or root_node.is_root == False:
             raise ValueError
         else:
             root_node.visited = True
             
-         
+        # initialize list
         actuals = list()
         queue = list()
         
-        ## begin BFS run
+        ### begin search run ###
 
         for v in root_node.neighbors:
             queue.append(v)
@@ -218,11 +224,11 @@ class SearchGraph:
             root_node.actual = root_node.matches - sum(actuals)
         
         # return actual matches
-        actual_matches = []
+        actual_matches = dict()
         for v in self.V:
             if self.V[v].actual > 0:
-                actual_matches.append(self.V[v].name)
-            
+                actual_matches[v] = self.V[v].actual
+                
         return actual_matches
         
         
@@ -301,6 +307,7 @@ class SearchGraph:
     def count_matches(self, string):
         
         ############################## functions ##############################
+        
         # returns number of matches of expression in a string
         def _match(rex, string):
             temp = re.findall(rex, string)
