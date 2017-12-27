@@ -3,85 +3,7 @@ import feedparser
 import datetime
 import psycopg2
 from placeFilter import *
-from rss_config import CONN_INFO
-
-
-
-# get filter list (also gets all sources)
-conn = connectToDatabase(CONN_INFO)
-with conn:
-    with conn.cursor() as curs:
-        curs.execute("SELECT * FROM filters;")
-        filter_info = curs.fetchall()
-        
-        
-        
-# get feeds for that source
-with conn:
-    with conn.cursor() as curs:
-        curs.execute("SELECT * FROM feeds WHERE source = %s;", (filter_info[0][0],))
-        the_feeds = curs.fetchall()
-        
-        
-
-filter_obj = placeFilter(filter_info[0][1])
-processor = processRSS(filter_obj)
-
-for feed in the_feeds:
-    url = feed[3]
-    feed_id = feed[0]
-    query_results = processor.parse_feed(url)
-    writer = writeToArticleDB(CONN_INFO, feed_id)
-    for r in query_results:
-        writer.writeToDatabase(r)
-    
-    print("feed id: %s" % feed_id)
-
-
-
-    
-         
-############# RSS feed parsing functions ###############
-#def entry_parser(rss_entry):
-#    
-#    # need to add error handling
-#    parsed_results = dict()
-#    parsed_results['id'] = rss_entry.id
-#    parsed_results['title'] = rss_entry.title
-#    parsed_results['url'] = rss_entry.link
-#    parsed_results['summary'] = re.sub('<.*?>', '', rss_entry.summary)  # filter out HTML tags
-#    parsed_results['content'] = re.sub('<.*?>', '', rss_entry.content[0]['value'])
-#    date_temp = rss_entry.published_parsed[:3]
-#    parsed_results['date'] = datetime.date(year = date_temp[0], month = date_temp[1], day = date_temp[2])
-#
-#    return parsed_results
-#
-#
-#def filter_entry(rss_entry, place_filter):
-#    
-#    parsed_entry = entry_parser(rss_entry)
-#    textblob = " ".join([parsed_entry['title'], parsed_entry['content'], parsed_entry['summary']])
-#    place_list = place_filter.checkFilters(textblob)
-#    
-#    if len(place_list) > 0:
-#        return {'entry':parsed_entry, 'places':place_list}
-#    else:
-#        return None
-#
-#
-#def parse_feed(rss_url, place_filter):
-#    
-#    assert isinstance(place_filter, placeFilter) == True
-#    
-#    results = feedparser.parse(rss_url)
-#    
-#    parsed_entries = []
-#    for entry in results.entries:
-#        parsed = filter_entry(entry, place_filter)
-#        if parsed != None:
-#            parsed_entries.append(parsed)
-#    
-#    return parsed_entries
+from rss_config import connectToDatabase
 
 
 class processRSS:
@@ -133,7 +55,48 @@ class processRSS:
             return None
         
         
-    
+############# RSS feed parsing functions ###############
+#def entry_parser(rss_entry):
+#    
+#    # need to add error handling
+#    parsed_results = dict()
+#    parsed_results['id'] = rss_entry.id
+#    parsed_results['title'] = rss_entry.title
+#    parsed_results['url'] = rss_entry.link
+#    parsed_results['summary'] = re.sub('<.*?>', '', rss_entry.summary)  # filter out HTML tags
+#    parsed_results['content'] = re.sub('<.*?>', '', rss_entry.content[0]['value'])
+#    date_temp = rss_entry.published_parsed[:3]
+#    parsed_results['date'] = datetime.date(year = date_temp[0], month = date_temp[1], day = date_temp[2])
+#
+#    return parsed_results
+#
+#
+#def filter_entry(rss_entry, place_filter):
+#    
+#    parsed_entry = entry_parser(rss_entry)
+#    textblob = " ".join([parsed_entry['title'], parsed_entry['content'], parsed_entry['summary']])
+#    place_list = place_filter.checkFilters(textblob)
+#    
+#    if len(place_list) > 0:
+#        return {'entry':parsed_entry, 'places':place_list}
+#    else:
+#        return None
+#
+#
+#def parse_feed(rss_url, place_filter):
+#    
+#    assert isinstance(place_filter, placeFilter) == True
+#    
+#    results = feedparser.parse(rss_url)
+#    
+#    parsed_entries = []
+#    for entry in results.entries:
+#        parsed = filter_entry(entry, place_filter)
+#        if parsed != None:
+#            parsed_entries.append(parsed)
+#    
+#    return parsed_entries
+            
 
 ######### write to database ###########
 
@@ -147,16 +110,8 @@ class writeToArticleDB:
         assert isinstance(feed_id, int)
         
         self.feed_id = feed_id
+        self.conn = connectToDatabase(conn_info, False)
         
-        conn_string = "host='localhost' dbname='%s' user='%s' password='%s'" % (conn_info['dbname'], conn_info['username'], conn_info['password'])
-        try:
-            self.conn = psycopg2.connect(conn_string)
-            print("Connected to database %s." % (conn_info['dbname']))          
-        except:
-            print('Error! Failure to connect to database %s' % (conn_info['dbname']))
-        
-    
-    
 
     def _writeArticle(self, data):
         
@@ -188,11 +143,6 @@ class writeToArticleDB:
             self._writePlace(data['places'], article_id)
         except psycopg2.IntegrityError:
             pass
-
-
-
-
-
 
 
 #def writeArticle(data, feed_id, conn_object):
@@ -227,10 +177,3 @@ class writeToArticleDB:
 #    except psycopg2.IntegrityError:
 #        pass
 #    
-
-
-        
-
-
-
-
