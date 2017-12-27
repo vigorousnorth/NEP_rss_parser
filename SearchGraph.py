@@ -1,4 +1,4 @@
-
+import re
 # class for storing data structure that defines the disambiguation search graph
 class disambiguation_data:
     
@@ -224,10 +224,11 @@ class SearchGraph:
             root_node.actual = root_node.matches - sum(actuals)
         
         # return actual matches
-        actual_matches = dict()
+        actual_matches = list()
         for v in self.V:
             if self.V[v].actual > 0:
-                actual_matches[v] = self.V[v].actual
+                #actual_matches[v] = self.V[v].actual
+                actual_matches.append(v)
                 
         return actual_matches
         

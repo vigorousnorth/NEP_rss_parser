@@ -1,5 +1,6 @@
 import re
-
+from placeFilter import placeFilter
+from SearchGraph import *
 ################################ demonstration of SearchGraph ################################
 # initialize SearchGraph data structure
 data_struct = {'root':'Portland', 
